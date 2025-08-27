@@ -1,0 +1,149 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum FeatureStatus {
+  publish
+  draft
+}
+
+model User {
+  id           String         @id @default(uuid())
+  username     String?
+  first_name   String?
+  last_name    String?
+  status       Int            @default(0)
+  group_id     Int?
+  email        String         @unique
+  created_at   DateTime       @default(now())
+  updated_at   DateTime       @updatedAt
+  UserSetting  UserSetting[]
+  Purchase     Purchase[]
+  UserPassword UserPassword[]
+  peacock      PeacockCode?
+  promoCode    PromoCode?
+}
+
+model PeacockCode {
+  id          String    @id @default(cuid())
+  voucherCode String
+  state       String    @default("ACTIVE")
+  userId      String?   @unique
+  user        User?     @relation(fields: [userId], references: [id])
+  dateRedeem  DateTime?
+  createdAt   DateTime  @default(now())
+}
+
+model PromoCode {
+  id     String @id @default(cuid())
+  code   String @unique
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id])
+}
+
+model UserPassword {
+  id       String @id @default(uuid()) // Add a primary key for UserPassword
+  user_id  String @unique
+  user     User   @relation(fields: [user_id], references: [id]) // Correctly reference User's id
+  password String
+}
+
+model UserSetting {
+  setting_id  String  @id @default(uuid())
+  owner_id    String?
+  owner       User?   @relation(fields: [owner_id], references: [id])
+  value       String?
+  key         String?
+  description String?
+  type        String?
+  options     String?
+  default     String?
+  display     Int     @default(0)
+}
+
+model Purchase {
+  id            BigInt    @id @default(autoincrement())
+  price_id      Int       @default(1)
+  owner_id      String?
+  owner         User?     @relation(fields: [owner_id], references: [id])
+  owner_type    String?   @default("user")
+  amount        Float     @default(0)
+  affiliate_id  String?
+  promocode_id  String?
+  billable_type String?   @default("merchant.braintree.subscription")
+  billable_id   String?
+  created_on    DateTime  @default(now())
+  updated_on    DateTime  @updatedAt
+  deleted_on    DateTime?
+}
+
+model FeatureCategory {
+  id              BigInt    @id @default(autoincrement())
+  title           String
+  sequence        BigInt
+  sport           String
+  slug            String
+  searchable      Int       @default(1)
+  titleTag        String?
+  metaDescription String?
+  h1Tag           String?
+  seoKeywords     String?
+  product         String?
+  seasonal        String    @default("all")
+  seoImage        String?
+  site            String    @default("all")
+  parent_id       Int       @default(0)
+  full_url        String?
+  Feature         Feature[]
+}
+
+model Feature {
+  id                     BigInt          @id @default(autoincrement())
+  timestamp              BigInt
+  class                  String          @default("article")
+  sport                  String?
+  title                  String
+  smallTitle             String?
+  seoURL                 String?
+  tags                   String?
+  period                 String?
+  timeframe              String?
+  status                 FeatureStatus   @default(publish)
+  description            String?
+  cover_image            String?
+  cover_alt_text         String?
+  security               Int             @default(-1)
+  style                  String?
+  searchable             Int             @default(1)
+  full_seo_url           String
+  user_id                BigInt          @default(-2)
+  category_id            BigInt
+  category               FeatureCategory @relation(fields: [category_id], references: [id])
+  created_at             DateTime?       @default(now())
+  updated_at             DateTime?       @default(now())
+  deleted_at             DateTime?
+  body                   String?         @db.LongText
+  thumb_width            String?
+  thumb_height           String?
+  thumbnail              String?
+  video_link             String?
+  video_original         String?
+  video_eplayer_id       String?
+  video_eplayer_video_id String?
+  video_still            String?
+  video_length           String?
+  video_large_player     String?
+  video_small_player     String?
+  video_type             String?
+}

@@ -1,5 +1,5 @@
 import { PrismaClient } from "@prisma/client";
-import { encrypt } from "../src/lib/encryption";
+import { encrypt } from "../lib/encryption";
 import * as XLSX from "xlsx";
 import * as path from "path";
 

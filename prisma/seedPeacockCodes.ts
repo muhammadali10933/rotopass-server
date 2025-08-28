@@ -1,48 +1,52 @@
 import { PrismaClient } from "@prisma/client";
 import { encrypt } from "../src/lib/encryption";
+import * as XLSX from "xlsx";
+import * as path from "path";
 
 const prisma = new PrismaClient();
 
-function loadData() {
-    const XLSX = require("xlsx");
-    const path = require("path");
+interface PeacockRow {
+    "Voucher Code": string;
+    State?: string;
+}
 
+function loadData(): { voucherCode: string; state: string }[] {
     const workbook = XLSX.readFile(path.join(__dirname, "peacock.xlsx"));
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    const data = XLSX.utils.sheet_to_json(sheet);
+    const data: PeacockRow[] = XLSX.utils.sheet_to_json(sheet);
 
-    // Assuming your file has columns like 'Campaign' and 'State'
-    const seedData = data.map((row: { [key: string]: any }) => ({
-        voucherCode: row['Voucher Code'],  // The column name from your spreadsheet
-        state: row['State']            // Adjust as needed based on your sheet structure
+    const seedData = data.map((row) => ({
+        voucherCode: row["Voucher Code"],
+        state: row["State"] || "ACTIVE", // default if missing
     }));
 
-    console.log(seedData); // Log to check the data structure
-
+    console.log(`Loaded ${seedData.length} rows from Excel`);
     return seedData;
 }
 
 async function main() {
     const seedData = loadData();
 
-    for (const { voucherCode, state } of seedData) {
-        const encrypted = encrypt(voucherCode);
+    await prisma.$transaction(
+        seedData.map(({ voucherCode, state }) => {
+            const encrypted = encrypt(voucherCode);
+            return prisma.peacockCode.create({
+                data: {
+                    voucherCode: encrypted,
+                    state,
+                },
+            });
+        })
+    );
 
-        await prisma.peacockCode.create({
-            data: {
-                voucherCode: encrypted,
-                state
-            },
-        });
-    }
+    console.log("✅ Peacock codes seeded into Postgres.");
 }
 
 main()
-    .then(() => {
-        console.log("Seeding complete.");
-        return prisma.$disconnect();
-    })
     .catch((err) => {
-        console.error("Seeding failed:", err);
-        return prisma.$disconnect().then(() => process.exit(1));
+        console.error("❌ Seeding failed:", err);
+        process.exit(1);
+    })
+    .finally(async () => {
+        await prisma.$disconnect();
     });
